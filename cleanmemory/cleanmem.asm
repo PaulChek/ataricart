@@ -11,11 +11,23 @@ Start:
                           ; Meanint the entire TIA reg space and RAM
          LDA   #0         ; A=0
          LDX   #$FF       ; 
+        
 ClearMemLoop:
-         STA   $0,X
          DEX
+         STA   $0,X
          BNE   ClearMemLoop ;loping if x!=0 z flag set
-         STA   $0,X       ;Null the 00 address
+         STA   $FF       ;Null the FF address
+
+
+
+;set background color
+;$00 - $7F - TIA rgisters television
+Colors_loop:
+         LDX #50
+         DEX
+         LDA 0,X
+         STA $09
+         BNE Colors_loop
 
                           ;Fill ROM up to 4KB 
          ORG   $FFFC
