@@ -1,11 +1,20 @@
     processor 6502
     include "vcs.h"
     include "macro.h"
-
+;;Define variables 
+    seg.u Vars
+    org  $80
+Player0Height ds 1      ; define space of var as i byte (size)    
+;;    
     seg
     org $f000
 Reset:
     CLEAN_START
+
+    ;;Declare vars
+     lda #10
+     sta Player0Height ;; $80
+    ;;
 
     ldx #$8d  
     stx COLUBK     ; color background
@@ -71,7 +80,7 @@ PlayerOneLoop:
         sta GRP0
         sta WSYNC
         inx
-        cpx #10
+        cpx Player0Height
         bne PlayerOneLoop
      
         lda #0
