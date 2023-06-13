@@ -118,10 +118,8 @@ VisibleLoop:
      sta WSYNC
     repend
     
-    ldx Player0X
-    inx
-    stx Player0X
-  
+    inc Player0X
+      
     jmp Frame
 ;=================================================================
 ;                       Lookup Tables
