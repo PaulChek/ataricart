@@ -1,132 +1,150 @@
     processor 6502
-    include "macro.h"
     include "vcs.h"
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Start uninit seg for var declaration, u can use $80 - $FF 
-;; minus few at the end if we use the stack.   
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    include "macro.h"
+;;Define variables 
     seg.u Vars
-    org $80
-P0Height byte   ; player sprite height
-P0Ypos   byte   ; player sprite Y coordinates
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Start our ROM code segment starting at $F000   
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    seg Code
-    org $F000
-
+    org  $80
+Player0Height ds 1      ; define space of var as i byte (size)    
+;;    
+    seg
+    org $f000
 Reset:
-     CLEAN_START ; clean mem and TIA
+    CLEAN_START
 
-     ldx #$00    ; black
-     stx COLUBK  ; set it to back
+    ;;Declare vars
+     lda #10
+     sta Player0Height ;; $80
+    ;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Initializing the variables
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;     
-    ldx #152
-    stx P0Ypos ; P0Ypos = 180
-    ldx #9
-    stx P0Height ; Poheight = 9
+    ldx #$8d  
+    stx COLUBK     ; color background
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Start the new frame by configuring VBLANK and VSYNC
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
+    lda #$0f
+    sta COLUPF	   ; color play field
+    
+    lda #$48
+    sta COLUP0	   ; color player 1	
+    
+    lda #$C6
+    sta COLUP1	   ; color player 2	
+
+    lda #%00000010 ; CTRLPF flag D1 set to score   
+    sta CTRLPF
 StartFrame:
     lda #2
-    sta VSYNC
     sta VBLANK
-    repeat 3
+    sta VSYNC
+
+    REPEAT 3
+        sta WSYNC   ; thre scan line for Vsync
+    REPEND
+    lda #0
+    sta VSYNC       ; turn of vsync
+
+    REPEAT 20
         sta WSYNC
-    repend    
-
+    REPEND
     lda #0
-    sta VSYNC
+    sta VBLANK 
+    ;;;;;;;;;;;;;;;;;;;;;;;
+    ;; 192 visible lines  ;;
+    ;;;;;;;;;;;;;;;;;;;;;;;
+   ; Draw 10 empty lines
+   REPEAT 10
+   	stx WSYNC
+   REPEND
    
-    ldy #37
-VBLANKloop:
-    dey
-    sta WSYNC    
-    bne VBLANKloop;
-
-    lda #0
-    sta VBLANK
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Drawing visible part of screen 192 lines
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
-           ldx #192
-ScanLineLoop:          
-           txa  
-	   sec
-           sbc P0Ypos
-           cmp P0Height
-           bcc P0Loop
-           lda #0
-P0Loop:		
-	   tay	
-           lda P0Bitmap,Y
-           sta GRP0
-           lda P0Colors,Y
-           sta COLUP0
-           sta WSYNC
-           dex
-           bne ScanLineLoop
-           
-           ;lda #0
-	   ;sta GRP0	
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Drawing 30 overscan lines
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;            
-       lda #2
-       sta VBLANK
-       ldy 30
-OverscanLoop:       
+   
+     ; draw scoreboard for the game
+     ldy #0
+ScoreBoardLoop:
+     lda NumberBitmap,Y	 
+     sta PF1
+     sta WSYNC
+     iny 
+     cpy #10
+     bne ScoreBoardLoop
+     
+     lda #0
+     sta PF1 ; disable playfield
+     
+     ;Draw empty space 
+     REPEAT 50
        sta WSYNC
-       dey
-       bne OverscanLoop
-       
-       lda #0
-       sta VBLANK
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Decrement player position
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;      
+     REPEND
+     
+     ;Draw player 0
+        ldx #0
+PlayerOneLoop:
+	lda PlayerBitmap,X
+        sta GRP0
+        sta WSYNC
+        inx
+        cpx Player0Height
+        bne PlayerOneLoop
+     
+        lda #0
+        sta GRP0 ;disable player 0 graphics
+     
+     ;Draw player 1
+        ldx #0
+PlayerTwoLoop:
+	lda PlayerBitmap,X
+        sta GRP1
+        sta WSYNC
+        inx
+        cpx #10
+        bne PlayerTwoLoop
+     
+        lda #0
+        sta GRP1 ;disable player 0 graphics     
+     
+     
+     
+ ;draw remaining of the playfield
+ 	Repeat 122
+         sta WSYNC
+        repend
 
-	dec P0Ypos
+;vblank  
+        Repeat 20
+          sta WSYNC
+        repend 
+     
+     
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Loop the frame
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;       
-       
-       jmp StartFrame
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Lookup table the player graphicc bitmap
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
-P0Bitmap:
-    byte #%00000000
-    byte #%00010000
-    byte #%00010000
-    byte #%01111110
-    byte #%11111100
-    byte #%11111100
-    byte #%11111100
-    byte #%01111110
-    byte #%00101100
-P0Colors:
-    byte #$40
-    byte #$D2
-    byte #$D2
-    byte #$40
-    byte #$40
-    byte #$40
-    byte #$42
-    byte #$42
-    byte #$44
- 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; End of catridge
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
-    org $FFFC
+     
+    
+     jmp StartFrame   
+;;bitmaps
+    org $FFE8
+PlayerBitmap:    
+	.byte #%01111110
+        .byte #%11111111
+        .byte #%10011001
+        .byte #%11111111
+        .byte #%11111111
+        .byte #%11111111
+        .byte #%10111101
+        .byte #%11000011
+        .byte #%11111111
+        .byte #%01111110   
+        
+    org $FFF2
+NumberBitmap:
+	.byte #%00001110
+        .byte #%00001110
+        .byte #%00000010
+        .byte #%00000010
+        .byte #%00001110
+        .byte #%00001110
+        .byte #%00001000
+        .byte #%00001000
+        .byte #%00001110
+        .byte #%00001110
+    
+   
+  ;; 4KB  
+     org $fffc
     .word Reset
     .word Reset
